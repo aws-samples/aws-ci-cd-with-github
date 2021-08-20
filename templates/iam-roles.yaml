@@ -1,0 +1,67 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Creates IAM roles for TaskCat CI.
+Resources:
+  StepFunctionServiceRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Sid: ''
+            Effect: Allow
+            Principal:
+              Service: !Sub states.${AWS::Region}.amazonaws.com
+            Action: 'sts:AssumeRole'
+      Path: /
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/CloudWatchLogsFullAccess
+        - arn:aws:iam::aws:policy/CloudWatchEventsFullAccess
+      Policies:
+      - PolicyName: StatesExecutionPolicy
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+            - Effect: Allow
+              Action:
+                - "sns:Publish"
+              Resource: "*"
+            - Effect: Allow
+              Action:
+                - "codebuild:StartBuild"
+                - "codebuild:StopBuild"
+                - "codebuild:BatchGetBuilds"
+                - "codebuild:BatchGetReports"
+              Resource: "*"
+            - Effect: Allow
+              Action:
+                - "lambda:InvokeFunction"
+              Resource: "*"
+  CodeBuildServiceRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Sid: ''
+            Effect: Allow
+            Principal:
+              Service: codebuild.amazonaws.com
+            Action: 'sts:AssumeRole'
+      Path: /
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/AdministratorAccess'
+Parameters:
+  ArtifactBucket:
+    AllowedPattern: '^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$'
+    ConstraintDescription: >-
+      Quick Start bucket name can include numbers, lowercase letters, uppercase
+      letters, and hyphens (-). It cannot start or end with a hyphen (-).
+    Description: S3 bucket name used to store build artifacts.
+    Type: String
+Outputs:
+  CodeBuildRoleArn:
+    Description: Code Build service role arn
+    Value: !GetAtt CodeBuildServiceRole.Arn
+  StepFunctionRoleArn:
+    Description: Step Function service role arn
+    Value: !GetAtt StepFunctionServiceRole.Arn

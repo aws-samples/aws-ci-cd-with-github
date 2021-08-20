@@ -1,0 +1,67 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  Creates Pipeline and required resources for TaskCat CI. License: Apache 2.0
+  (Please do not remove)(qs-1ops82lkf)
+
+Resources:
+  ArtifactBucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      AccessControl: Private
+      LifecycleConfiguration:
+        Rules:
+          - NoncurrentVersionExpirationInDays: 30
+            Status: Enabled
+      VersioningConfiguration:
+        Status: Enabled
+  IAMRoleStack:
+    Type: 'AWS::CloudFormation::Stack'
+    Properties:
+      TemplateURL: ./iam-roles.yaml
+      Parameters:
+        ArtifactBucket: !Ref ArtifactBucket
+  CodePipelineStack:
+    Type: 'AWS::CloudFormation::Stack'
+    Properties:
+      TemplateURL: ./pipeline.yaml
+      Parameters:
+        GitHubUser: !Ref GitHubUser
+        GitHubRepoName: !Ref GitHubRepoName
+        DeploymentRepoBranch: !Ref SourceBranch
+        StepFunctionsRoleArn: !GetAtt IAMRoleStack.Outputs.StepFunctionRoleArn
+        ArtifactBucket: !Ref ArtifactBucket
+        CodeBuildRoleArn: !GetAtt IAMRoleStack.Outputs.CodeBuildRoleArn
+
+Parameters:
+  GitHubUser:
+    Description: Enter the GitHub Organization name
+    Type: String
+  GitHubRepoName:
+    Description: Enter the GitHub repository name
+    Type: String
+  SourceBranch:
+    Description: Enter the branch name to be monitored
+    Type: String
+    Default: develop
+  
+Metadata:
+  'AWS::CloudFormation::Interface':
+    ParameterGroups:
+      - Label:
+          default: AWS Code Commit Configuration
+        Parameters:
+          - CodeCommitRepoName
+          - CodeCommitRepoUrl
+          - SourceBranch
+    ParameterLabels:
+      CodeCommitRepoUrl:
+        default: Repository URL
+      CodeCommitRepoName:
+        default: Repository name
+      SourceBranch:
+        default: Source branch
+
+Outputs:
+  TaskCatReports:
+    Description: Path to the TaskCat report. Each report is named as CODEBUILD_BUILD_ID.zip
+    Value: !Sub 's3://${ArtifactBucket}/taskcat_reports/'
